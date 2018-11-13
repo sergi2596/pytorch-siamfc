@@ -18,14 +18,14 @@ class modifiedAlexNet(nn.Module):
             nn.Conv2d(3, 96, kernel_size=11, stride=2),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(48, 256, kernel_size=5),
+            nn.Conv2d(96, 256, kernel_size=5, groups=2),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(256, 384, kernel_size=3),
+            nn.Conv2d(256, 384, kernel_size=3, groups=2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(192, 384, kernel_size=3),
+            nn.Conv2d(384, 384, kernel_size=3, groups=2),
             nn.ReLU(inplace=True),
-            nn.Conv2d(192, 256, kernel_size=3)
+            nn.Conv2d(384, 256, kernel_size=3, groups=2)
         )
         self.classifier = nn.Sequential(
             nn.Dropout(),

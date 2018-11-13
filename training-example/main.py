@@ -14,6 +14,12 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 
+from bokeh.plotting import figure
+from bokeh.io import show
+from bokeh.models import LinearAxis, Range1d
+import numpy as np
+
+
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
@@ -22,6 +28,8 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
+parser.add_argument('store', metavar='STORE',
+                    help='path to Store model')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
@@ -56,6 +64,8 @@ best_prec1 = 0
 def main():
     global args, best_prec1
     args = parser.parse_args()
+    loss_list = []
+    acc_list = []
 
     # create model
     if args.pretrained:
@@ -89,6 +99,7 @@ def main():
     # Data loading code
     traindir = os.path.join(args.data, 'train')
     valdir = os.path.join(args.data, 'val')
+    testdir = os.path.join(args.data, 'test')
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
@@ -104,6 +115,16 @@ def main():
 
     val_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(valdir, transforms.Compose([
+            transforms.Scale(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            normalize,
+        ])),
+        batch_size=args.batch_size, shuffle=False,
+        num_workers=args.workers, pin_memory=True)
+
+    test_loader = torch.utils.data.DataLoader(
+        datasets.ImageFolder(testdir, transforms.Compose([
             transforms.Scale(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -142,6 +163,8 @@ def main():
             'best_prec1': best_prec1,
         }, is_best)
 
+    test(model, test_loader, args.store, loss_list)
+
 
 def train(train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
@@ -165,6 +188,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # compute output
         output = model(input_var)
         loss = criterion(output, target_var)
+        loss_list.append(loss.item())
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
@@ -281,6 +305,31 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+
+def test(model, test_loader, MODEL_STORE_PATH, loss_list):
+    model.eval()
+    acc_list = []
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in test_loader:
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            acc_list.append(correct/total)
+
+            print('Test Accuracy of the model on the 10000 test images: {} %'.format((correct / total) * 100))
+
+    # Save the model and plot
+    torch.save(model.state_dict(), MODEL_STORE_PATH + 'conv_net_model.ckpt')
+
+    p = figure(y_axis_label='Loss', width=850, y_range=(0, 1), title='PyTorch ConvNet results')
+    p.extra_y_ranges = {'Accuracy': Range1d(start=0, end=100)}
+    p.add_layout(LinearAxis(y_range_name='Accuracy', axis_label='Accuracy (%)'), 'right')
+    p.line(np.arange(len(loss_list)), loss_list)
+    p.line(np.arange(len(loss_list)), np.array(acc_list) * 100, y_range_name='Accuracy', color='red')
+    show(p)
 
 
 if __name__ == '__main__':
