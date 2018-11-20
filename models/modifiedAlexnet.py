@@ -16,14 +16,18 @@ class modifiedAlexNet(nn.Module):
         super(modifiedAlexNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 96, kernel_size=11, stride=2),
+            nn.BatchNorm2d(96),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
             nn.Conv2d(96, 256, kernel_size=5, groups=2),
+            nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(256, 384, kernel_size=3, groups=2),
+            nn.Conv2d(256, 384, kernel_size=3),
+            nn.BatchNorm2d(384),
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 384, kernel_size=3, groups=2),
+            nn.BatchNorm2d(384),
             nn.ReLU(inplace=True),
             nn.Conv2d(384, 256, kernel_size=3, groups=2)
         )
@@ -44,13 +48,13 @@ class modifiedAlexNet(nn.Module):
         return x
 
 
-def modifiedalexnet(pretrained=False, **kwargs):
-    r"""AlexNet model architecture from the
-    `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-    """
-    model = modifiedAlexNet(**kwargs)
-    if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['alexnet']))
-    return model
+# def modifiedalexnet(pretrained=False, **kwargs):
+#     r"""AlexNet model architecture from the
+#     `"One weird trick..." <https://arxiv.org/abs/1404.5997>`_ paper.
+#     Args:
+#         pretrained (bool): If True, returns a model pre-trained on ImageNet
+#     """
+#     model = modifiedAlexNet(**kwargs)
+#     if pretrained:
+#         model.load_state_dict(model_zoo.load_url(model_urls['alexnet']))
+#     return model
