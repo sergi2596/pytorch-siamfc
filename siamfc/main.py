@@ -3,6 +3,9 @@ import os
 import shutil
 import time
 
+from sys import exit
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -13,7 +16,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-# from .models import modifiedAlexnet
+import siamesenet as siamnet
 
 
 # from bokeh.plotting import figure
@@ -25,12 +28,13 @@ import torchvision.models as models
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
     and callable(models.__dict__[name]))
+model_names.append('siamesenet')
 
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-# parser.add_argument('store', metavar='STORE',
+# parser.add_argument('--store', metavar='STORE',
 #                     help='path to Store model')
 parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18',
                     choices=model_names,
@@ -74,28 +78,34 @@ def main():
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
+        if args.arch.startswith('siamesenet'):
+            print("=> Using SiameseNet model")
+            model = siamnet.SiameseNet()
+        else:
+            print("=> creating model '{}'".format(args.arch))
+            model = models.__dict__[args.arch]()
 
-    if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+    if args.arch.startswith('alexnet') or args.arch.startswith('siamesenet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
         model.cuda()
     else:
         model = torch.nn.DataParallel(model).cuda()
-
+    
+    model.init_weights()
+    print(model._create_gt_mask((17,17)))
     # optionally resume from a checkpoint
-    if args.resume:
-        if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            best_prec1 = checkpoint['best_prec1']
-            model.load_state_dict(checkpoint['state_dict'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
-        else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
-
+    # if args.resume:
+    #     if os.path.isfile(args.resume):
+    #         print("=> loading checkpoint '{}'".format(args.resume))
+    #         checkpoint = torch.load(args.resume)
+    #         args.start_epoch = checkpoint['epoch']
+    #         best_prec1 = checkpoint['best_prec1']
+    #         model.load_state_dict(checkpoint['state_dict'])
+    #         print("=> loaded checkpoint '{}' (epoch {})"
+    #               .format(args.resume, checkpoint['epoch']))
+    #     else:
+    #         print("=> no checkpoint found at '{}'".format(args.resume))
+    exit()
     cudnn.benchmark = True
 
     # Data loading code
@@ -106,7 +116,7 @@ def main():
 
     train_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder(traindir, transforms.Compose([
-            transforms.RandomSizedCrop(224),
+            transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             normalize,
@@ -248,31 +258,6 @@ def validate(val_loader, model, criterion):
           .format(top1=top1, top5=top5))
 
     return top1.avg
-
-def test(model, test_loader, MODEL_STORE_PATH, loss_list):
-    model.eval()
-    acc_list = []
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for images, labels in test_loader:
-            outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            acc_list.append(correct/total)
-
-            print('Test Accuracy of the model on the 10000 test images: {} %'.format((correct / total) * 100))
-
-    # Save the model and plot
-    torch.save(model.state_dict(), MODEL_STORE_PATH + 'conv_net_model.ckpt')
-
-    p = figure(y_axis_label='Loss', width=850, y_range=(0, 1), title='PyTorch ConvNet results')
-    p.extra_y_ranges = {'Accuracy': Range1d(start=0, end=100)}
-    p.add_layout(LinearAxis(y_range_name='Accuracy', axis_label='Accuracy (%)'), 'right')
-    p.line(np.arange(len(loss_list)), loss_list)
-    p.line(np.arange(len(loss_list)), np.array(acc_list) * 100, y_range_name='Accuracy', color='red')
-    show(p)
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):

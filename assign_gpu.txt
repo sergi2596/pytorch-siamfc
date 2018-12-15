@@ -1,0 +1,24 @@
+//To open tensorboard
+
+ssh -L 16006:127.0.0.1:6006 deutsch@vsc3.vsc.ac.at
+
+//Check available gpus:
+
+sinfo
+
+//Choose and allocate GPU:
+
+salloc -N 1 -p gpu_k20m --qos gpu_k20m --gres gpu:1
+
+
+//Check if GPU was correctly allocated:
+
+squeue -u deutsch
+
+//Enter via ssh to the GPU:
+
+ssh n72-024
+
+//Monitor GPU status:
+
+watch -n0.1 nvidia-smi
