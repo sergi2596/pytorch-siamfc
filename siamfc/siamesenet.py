@@ -28,6 +28,9 @@ class SiameseNet(nn.Module):
             nn.Conv2d(384, 256, kernel_size=3, groups=2)
         )
         self.corr_bias = nn.Parameter(torch.zeros(1))
+        gt, weight = self._create_gt_mask((config.response_sz, config.response_sz))
+        self.gt = torch.from_numpy(gt).cuda()
+        self.weight = torch.from_numpy(weight).cuda()
 
     def init_weights(self):
         """ Initializes the weights of the CNN model
@@ -45,6 +48,9 @@ class SiameseNet(nn.Module):
         reference = self.features(z)
         score_map = F.conv2d(search, reference) + self.corr_bias
         return score_map
+    
+    def loss(self, output):
+        return F.binary_cross_entropy_with_logits(output, self.gt)
 
 
     def _create_gt_mask(self, shape):

@@ -6,7 +6,7 @@ class Config:
     context_amount = 0.5                   # context amount
 
     # training related
-    num_per_epoch = 53200                  # num of samples per epoch
+    num_per_epoch = 1000                  # num of samples per epoch
     train_ratio = 0.9                      # training ratio of VID dataset
     frame_range = 100                      # frame range of choosing the instance
     train_batch_size = 8                   # training batch size
@@ -18,7 +18,8 @@ class Config:
     weight_decay = 0.0                     # weight decay of optimizator
     step_size = 25                         # step size of LR_Schedular
     gamma = 0.1                            # decay rate of LR_Schedular
-    epoch = 30                             # total epoch
+    start_epoch = 0                        # start from epoch
+    epoch = 2                             # total epoch
     seed = 1234                            # seed to sample training videos
     log_dir = './models/logs'              # log dirs
     radius = 16                            # radius of positive label
