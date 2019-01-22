@@ -1,6 +1,7 @@
 import argparse
 import os
 import shutil
+from datetime import datetime
 import time
 
 import sys
@@ -8,6 +9,10 @@ import sys
 import pickle
 import lmdb
 from sklearn.model_selection import train_test_split
+from tensorboardX import SummaryWriter
+from torch.optim.lr_scheduler import StepLR
+
+
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -24,6 +29,8 @@ import torchvision.models as models
 from config import config
 import siamesenet as siamnet
 from datasets import ImagnetVIDDataset
+from custom_transforms import Normalize, ToTensor, RandomStretch, \
+    RandomCrop, CenterCrop, RandomBlur, ColorAug
 
 
 # from bokeh.plotting import figure
@@ -64,6 +71,25 @@ best_prec1 = 0
 
 def main():
 
+    # create Experiment directories
+    cwd = os.getcwd()
+    experiment_folder = os.path.join(cwd,config.experiment_folder)
+    
+    if not os.path.exists(experiment_folder):
+        os.mkdir(experiment_folder)
+
+    new_exp_dir = os.path.join(cwd,config.experiment_folder, datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
+    tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
+    models_dir = os.path.join(new_exp_dir+'/models/')
+
+    if not os.path.exists(new_exp_dir):
+        os.mkdir(new_exp_dir)
+        os.mkdir(tensorboard_dir)
+        os.mkdir(models_dir)
+    
+    # Create Tensorboard summary writer
+    writer = SummaryWriter(tensorboard_dir)
+
     global args, best_prec1
     args = parser.parse_args()
     loss_list = []
@@ -78,32 +104,35 @@ def main():
     train_videos, valid_videos = train_test_split(videos,
                                                   test_size=1-config.train_ratio)
 
+    # define transforms
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                     std=[0.229, 0.224, 0.225])
+
+    random_crop_size = config.instance_size - 2 * config.total_stride
+    train_reference_transforms = transforms.Compose([
+        CenterCrop((config.exemplar_size, config.exemplar_size)),
+        ToTensor()
+    ])
+    train_search_transforms = transforms.Compose([
+        # RandomCrop((random_crop_size, random_crop_size), config.max_translate),
+        ToTensor()
+    ])
+    valid_reference_transforms = transforms.Compose([
+        CenterCrop((config.exemplar_size, config.exemplar_size)),
+        ToTensor()
+    ])
+    valid_search_transforms = transforms.Compose([
+        ToTensor()
+    ])
+
     # opem lmdb
     db = lmdb.open(args.datadir+'.lmdb', readonly=True, map_size=int(50e9))
 
-    # define transforms
-    random_crop_size = config.instance_size - 2 * config.total_stride
-    train_z_transforms = transforms.Compose([
-        transforms.CenterCrop((config.exemplar_size, config.exemplar_size)),
-        transforms.ToTensor()
-    ])
-    train_x_transforms = transforms.Compose([
-        # transforms.RandomCrop((random_crop_size, random_crop_size), config.max_translate),
-        transforms.ToTensor()
-    ])
-    valid_z_transforms = transforms.Compose([
-        transforms.CenterCrop((config.exemplar_size, config.exemplar_size)),
-        transforms.ToTensor()
-    ])
-    valid_x_transforms = transforms.Compose([
-        transforms.ToTensor()
-    ])
-
     # create dataset
     train_dataset = ImagnetVIDDataset(db, train_videos, args.datadir,
-                                      train_z_transforms, train_x_transforms)
+                                      train_reference_transforms, train_search_transforms)
     valid_dataset = ImagnetVIDDataset(db, valid_videos, args.datadir,
-                                      valid_z_transforms, valid_x_transforms, training=False)
+                                      valid_reference_transforms, valid_search_transforms, training=False)
 
     # create dataloader
     print('Loading Train Dataset...')
@@ -112,29 +141,33 @@ def main():
     print('Loading Validation Dataset...')
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
-
+    
+    
     print('Loading SiameseNet')
-
     model = siamnet.SiameseNet()
     model.features = torch.nn.DataParallel(model.features)
+    model.init_weights()
     model = model.cuda()
     print("Using", torch.cuda.device_count(), "GPUs")
     print("Model running on GPU:", next(model.parameters()).is_cuda)
-    model.init_weights()
     cudnn.benchmark = True
 
     optimizer = torch.optim.SGD(model.parameters(), lr=config.lr,
                                 momentum=config.momentum,
                                 weight_decay=config.weight_decay)
 
+    scheduler = StepLR(optimizer, step_size=config.step_size,
+                       gamma=config.gamma)
+
     for epoch in range(config.start_epoch, config.epoch):
 
         # model.train() tells your model that you are training the model.
         # So effectively layers like dropout, batchnorm etc. which behave
         # different on the train and test procedures
+
+        training_loss = []
         model.train()
 
-        running_loss = 0.0
         for i, data in enumerate(tqdm(trainloader)):
 
             reference_imgs, search_imgs = data
@@ -149,16 +182,41 @@ def main():
             # the gradients on subsequent backward passes.
             optimizer.zero_grad()
 
-            outputs = model((reference_var, search_var))
+            outputs = model(reference_var, search_var)
             loss = model.loss(outputs)
+            # print('LOSS ==>', loss)
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
-            if i % 10 == 9:    # print every 2000 mini-batches
-                print('[%d, %5d] loss: %.3f' %
-                      (epoch + 1, i + 1, running_loss / 10))
-                running_loss = 0.0
+            step = epoch * len(trainloader) + i
+            writer.add_scalars('Loss', {'Training':loss.data}, step)
+
+            training_loss.append(loss.data)
+
+        training_loss = torch.mean(torch.stack(training_loss)).item()
+
+        valid_loss = []
+        model.eval()
+
+        for i, data in enumerate(tqdm(validloader)):
+
+            reference_imgs, search_imgs = data
+            reference_var = Variable(reference_imgs.cuda())
+            search_var = Variable(search_imgs.cuda())
+            outputs = model(reference_var, search_var)
+            loss = model.loss(outputs)
+            valid_loss.append(loss.data)
+
+        valid_loss = torch.mean(torch.stack(valid_loss)).item()
+        # print('valid loss', valid_loss, type(valid_loss))
+
+        print("EPOCH %d Training Loss: %.4f, Validation Loss: %.4f" %(epoch, training_loss, valid_loss))
+        
+        torch.save(model.cpu().state_dict(), models_dir+"siamfc_{}.pth".format(epoch+1))
+        writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
+        
+        model.cuda()
+        scheduler.step()
 
 
 if __name__ == '__main__':

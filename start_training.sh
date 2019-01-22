@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH -J training-test
-#SBATCH -N 2
-#SBATCH --partition gpu_gtx1080multi
-#SBATCH --qos gpu_gtx1080multi
-#SBATCH --gres gpu:2
+#SBATCH -N 1
+#SBATCH --partition gpu_gtx1080single
+#SBATCH --qos gpu_gtx1080single
+#SBATCH --gres gpu:1
 
 module purge
 module load gcc/6.4 python/3.6 cuda/9.1.85
