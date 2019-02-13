@@ -59,16 +59,19 @@ class SiameseNet(nn.Module):
         """
 
         # print('SEARCH IMAGE ==>', x.shape)
+        # print('REFERENCE IMAGE ==>', z.shape)
         search = self.features(x)
         # print('SEARCH MAP ==>', search.shape)
         reference = self.features(z)
+        # print('MAX, MIN ==>', reference.max(), reference.min())
         # print('REFRERENCE MAP ==>', reference)
         N, C, H, W = search.shape
         search = search.view(1, -1, H, W)
-        score_map = F.conv2d(search, reference, groups=N) + self.corr_bias
+        score_map = F.conv2d(search, reference, groups=N) * config.response_scale + self.corr_bias
         # score_map = self.batch_normalization(score_map)
 
         # print('score_map.transpose ==>', score_map.transpose(0,1))
+        # print('score_map MAX, MIN ==>', score_map.max().item(), score_map.min().item())
         return score_map.transpose(0, 1)
     
     def loss(self, output):
@@ -81,8 +84,13 @@ class SiameseNet(nn.Module):
         Returns:
             [type] -- [description]
         """
-        return F.binary_cross_entropy_with_logits(output, self.gt, self.weight, reduction='sum') / config.train_batch_size
-        # return F.soft_margin_loss(output, self.gt, reduction='sum') / config.train_batch_size
+
+        # print('GT ==>', self.gt.shape)
+        # print('SCORE MAP ==>', output.shape)
+        # return F.binary_cross_entropy_with_logits(output, self.gt, self.weight, reduction='sum') / config.train_batch_size
+        # print("BINARY LOSS ==>", binary.item())
+        return F.soft_margin_loss(output, self.gt, reduction='sum') / config.train_batch_size
+
     def _create_gt_mask(self, shape):
         """Creates the Ground Truth Score Map to compute the loss
         
@@ -102,8 +110,8 @@ class SiameseNet(nn.Module):
         y, x = np.meshgrid(y, x)
         dist = np.sqrt(x**2 + y**2)
 
-        mask = np.zeros((h, w))
-        # mask = np.full((h, w), -1)
+        # mask = np.zeros((h, w))
+        mask = np.full((h, w), -1)
         mask[dist <= config.radius / config.total_stride] = 1
 
         # np.newaxis is used to increase the dimension 
@@ -112,7 +120,7 @@ class SiameseNet(nn.Module):
         
         weights = np.ones_like(mask)
         weights[mask == 1] = 0.5 / np.sum(mask == 1)
-        weights[mask == 0] = 0.5 / np.sum(mask == 0)
+        weights[mask == -1] = 0.5 / np.sum(mask == -1)
 
         # mask output size:
         # [batch_size, 1, config.response_size, config.response_size]

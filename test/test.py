@@ -72,15 +72,16 @@ def main():
 
     # create Experiment directories
     cwd = os.getcwd()
-    siamfc = os.path.join(cwd,'siamfc')    
-    experiment_folder = os.path.join(cwd,config.experiment_folder)
+    test = os.path.join(cwd,'test')
+    experiment_folder = os.path.join(test, config.experiment_folder)
     time = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
-    print('\n================= EXPERIMENT START TIME', time, '=================\n')
+    print('\n================= EXPERIMENT START TIME',
+          time, '=================\n')
     
     if not os.path.exists(experiment_folder):
         os.mkdir(experiment_folder)
 
-    new_exp_dir = os.path.join(cwd,config.experiment_folder, time)
+    new_exp_dir = os.path.join(test, config.experiment_folder, time)
     tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
     models_dir = os.path.join(new_exp_dir+'/models/')
 
@@ -88,26 +89,33 @@ def main():
         os.mkdir(new_exp_dir)
         os.mkdir(tensorboard_dir)
         os.mkdir(models_dir)
-        for file in glob.glob(os.path.join(siamfc, "*.py")):
+        for file in glob.glob(os.path.join(test, "*.py")):
             if os.path.isfile(file):
-                shutil.copyfile(file, new_exp_dir+file.split(siamfc)[1])
+                shutil.copyfile(file, new_exp_dir+file.split(test)[1])
         print('Experiment folder created')
-    
+
     # Create Tensorboard summary writer
     writer = SummaryWriter(tensorboard_dir)
+
     global args, best_prec1
     args = parser.parse_args()
     loss_list = []
     acc_list = []
 
-    # loading meta data
-    meta_data_path = os.path.join(args.datadir, "meta_data.pkl")
-    meta_data = pickle.load(open(meta_data_path, 'rb'))
-    videos = [x[0] for x in meta_data]
+    if 'ILSVRC_VID_CURATION' in args.datadir:
+        # loading meta data
+        meta_data_path = os.path.join(args.datadir, "meta_data.pkl")
+        meta_data = pickle.load(open(meta_data_path, 'rb'))
+        videos = [x[0] for x in meta_data]
+
+    elif 'SQUARE_DATASET' in args.datadir:
+        videos = ['images_1', 'images_2', 'images_3',
+                  'images_4', 'images_5', 'images_6']
 
     # split train/valid dataset
-    train_videos, valid_videos = train_test_split(videos,
-                                                  test_size=1-config.train_ratio)
+    train_videos, valid_videos = train_test_split(
+        videos, test_size=1-config.train_ratio)
+
     # define transforms
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
@@ -115,17 +123,21 @@ def main():
     random_crop_size = config.instance_size - 2 * config.total_stride
     train_reference_transforms = transforms.Compose([
         CenterCrop((config.exemplar_size, config.exemplar_size)),
+        Normalize(),
         ToTensor()
     ])
     train_search_transforms = transforms.Compose([
         # RandomCrop((random_crop_size, random_crop_size), config.max_translate),
+        Normalize(),
         ToTensor()
     ])
     valid_reference_transforms = transforms.Compose([
         CenterCrop((config.exemplar_size, config.exemplar_size)),
+        Normalize(),
         ToTensor()
     ])
     valid_search_transforms = transforms.Compose([
+        Normalize(),
         ToTensor()
     ])
 
@@ -137,9 +149,7 @@ def main():
                                       train_reference_transforms, train_search_transforms)
     valid_dataset = ImagnetVIDDataset(db, valid_videos, args.datadir,
                                       valid_reference_transforms, valid_search_transforms, training=False)
-    
 
-    sys.exit()
     # create dataloader
     print('Loading Train Dataset...')
     trainloader = DataLoader(train_dataset, batch_size=config.train_batch_size,
@@ -147,14 +157,13 @@ def main():
     print('Loading Validation Dataset...')
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
-    
-    
+
     print('Loading SiameseNet')
     model = siamnet.SiameseNet()
     model.features = torch.nn.DataParallel(model.features)
     model.init_weights()
     model = model.cuda()
-    print("Available GPUs", torch.cuda.device_count())
+    print("Available GPUs:", torch.cuda.device_count())
     print("Model running on GPU:", next(model.parameters()).is_cuda)
     cudnn.benchmark = True
 
@@ -190,16 +199,18 @@ def main():
 
             outputs = model(reference_var, search_var)
             loss = model.loss(outputs)
+            # print('SOFT LOSS ==>', loss.item())
+            # if i == 10:
+            #     break
             loss.backward()
             optimizer.step()
 
             step = epoch * len(trainloader) + i
-            writer.add_scalars('Loss', {'Training':loss.data}, step)
+            writer.add_scalars('Loss', {'Training': loss.data}, step)
 
             training_loss.append(loss.data)
 
         training_loss = torch.mean(torch.stack(training_loss)).item()
-
         valid_loss = []
         model.eval()
 
@@ -210,19 +221,22 @@ def main():
             search_var = Variable(search_imgs.cuda())
             outputs = model(reference_var, search_var)
             loss = model.loss(outputs)
+            # print('valid loss ==>', loss)
             valid_loss.append(loss.data)
 
         valid_loss = torch.mean(torch.stack(valid_loss)).item()
         # print('valid loss', valid_loss, type(valid_loss))
 
-        print("EPOCH %d Training Loss: %.4f, Validation Loss: %.4f" %(epoch, training_loss, valid_loss))
-        
-        torch.save(model.cpu().state_dict(), models_dir+"siamfc_{}.pth".format(epoch+1))
-        writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
-        
+        print("EPOCH %d Training Loss: %.4f, Validation Loss: %.4f" %
+              (epoch, training_loss, valid_loss))
+
+        torch.save(model.cpu().state_dict(), models_dir +
+                   "siamfc_{}.pth".format(epoch+1))
+        # writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
+
         model.cuda()
         scheduler.step()
-    
+
     time = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
     print('\n================= EXPERIMENT END TIME', time, '=================\n')
 
