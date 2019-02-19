@@ -19,7 +19,7 @@ class Config:
     step_size = 25                         # step size of LR_Schedular
     gamma = 0.1                            # decay rate of LR_Schedular
     start_epoch = 0                        # start from epoch
-    epoch = 8                             # total epoch
+    epoch = 30                             # total epoch
     seed = 1234                            # seed to sample training videos
     experiment_folder = 'experiments'      # Experiment dirs
     radius = 16                            # radius of positive label

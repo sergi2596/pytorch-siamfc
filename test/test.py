@@ -38,32 +38,8 @@ from custom_transforms import Normalize, ToTensor, RandomStretch, \
 # import numpy as np
 
 
-parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-
+parser = argparse.ArgumentParser(description='PyTorch SiamFC Training')
 parser.add_argument('--datadir', metavar='DIR', help='path to dataset')
-
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
-                    help='number of total epochs to run')
-parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
-                    help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
-                    metavar='N', help='mini-batch size (default: 256)')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                    help='momentum')
-parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)')
-parser.add_argument('--print-freq', '-p', default=10, type=int,
-                    metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
-                    help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                    help='evaluate model on validation set')
-parser.add_argument('--pretrained', dest='pretrained', action='store_true',
-                    help='use pre-trained model')
 
 best_prec1 = 0
 
@@ -74,7 +50,7 @@ def main():
     cwd = os.getcwd()
     test = os.path.join(cwd,'test')
     experiment_folder = os.path.join(test, config.experiment_folder)
-    time = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
+    time = datetime.now().strftime('%d-%m-%Y_%H-%M-%S')
     print('\n================= EXPERIMENT START TIME',
           time, '=================\n')
     
@@ -84,16 +60,21 @@ def main():
     new_exp_dir = os.path.join(test, config.experiment_folder, time)
     tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
     models_dir = os.path.join(new_exp_dir+'/models/')
+    output_files = []
 
     if not os.path.exists(new_exp_dir):
         os.mkdir(new_exp_dir)
         os.mkdir(tensorboard_dir)
         os.mkdir(models_dir)
+        print('Experiment folder created')
+
         for file in glob.glob(os.path.join(test, "*.py")):
             if os.path.isfile(file):
                 shutil.copyfile(file, new_exp_dir+file.split(test)[1])
-        print('Experiment folder created')
 
+        for file in glob.glob(os.path.join(cwd, "*.out")):
+            output_files.append(file)
+    
     # Create Tensorboard summary writer
     writer = SummaryWriter(tensorboard_dir)
 
@@ -158,13 +139,14 @@ def main():
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
 
+
     print('Loading SiameseNet')
     model = siamnet.SiameseNet()
     model.features = torch.nn.DataParallel(model.features)
     model.init_weights()
     model = model.cuda()
     print("Available GPUs:", torch.cuda.device_count())
-    print("Model running on GPU:", next(model.parameters()).is_cuda)
+    print("Model running on GPU:", next(model.parameters()).is_cuda), '\n\n'
     cudnn.benchmark = True
 
     optimizer = torch.optim.SGD(model.parameters(), lr=config.lr,
@@ -199,9 +181,6 @@ def main():
 
             outputs = model(reference_var, search_var)
             loss = model.loss(outputs)
-            # print('SOFT LOSS ==>', loss.item())
-            # if i == 10:
-            #     break
             loss.backward()
             optimizer.step()
 
@@ -221,24 +200,26 @@ def main():
             search_var = Variable(search_imgs.cuda())
             outputs = model(reference_var, search_var)
             loss = model.loss(outputs)
-            # print('valid loss ==>', loss)
             valid_loss.append(loss.data)
 
         valid_loss = torch.mean(torch.stack(valid_loss)).item()
-        # print('valid loss', valid_loss, type(valid_loss))
 
         print("EPOCH %d Training Loss: %.4f, Validation Loss: %.4f" %
               (epoch, training_loss, valid_loss))
 
         torch.save(model.cpu().state_dict(), models_dir +
                    "siamfc_{}.pth".format(epoch+1))
-        # writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
+        writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
 
         model.cuda()
         scheduler.step()
 
     time = datetime.now().strftime('%d-%m-%Y-%H:%M:%S')
     print('\n================= EXPERIMENT END TIME', time, '=================\n')
+
+    # Copy slurm output files to experiment folder
+    for file in output_files:
+        shutil.copyfile(file, new_exp_dir+file.split(cwd)[1])
 
 
 if __name__ == '__main__':

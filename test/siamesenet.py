@@ -58,21 +58,14 @@ class SiameseNet(nn.Module):
             [torch.Tensor] -- Score Map of the correlation
         """
 
-        # print('SEARCH IMAGE ==>', x.shape)
-        # print('REFERENCE IMAGE ==>', z.shape)
         search = self.features(x)
-        # print('SEARCH MAP ==>', search.shape)
         reference = self.features(z)
-        # print('MAX, MIN ==>', reference.max(), reference.min())
-        # print('REFRERENCE MAP ==>', reference)
         N, C, H, W = search.shape
         search = search.view(1, -1, H, W)
         score_map = F.conv2d(search, reference, groups=N) * config.response_scale + self.corr_bias
-        # score_map = self.batch_normalization(score_map)
+        weighted_score_map = score_map * self.weight
 
-        # print('score_map.transpose ==>', score_map.transpose(0,1))
-        # print('score_map MAX, MIN ==>', score_map.max().item(), score_map.min().item())
-        return score_map.transpose(0, 1)
+        return weighted_score_map.transpose(0, 1)
     
     def loss(self, output):
         """Since we compute the loss for every mini-batch, we first calculate
@@ -103,6 +96,7 @@ class SiameseNet(nn.Module):
 
         # same for all pairs
         h, w = shape
+        totalSize = h*w
 
         # Creates a circle depending on network stride
         y = np.arange(h, dtype=np.float32) - (h-1) / 2.
@@ -110,23 +104,26 @@ class SiameseNet(nn.Module):
         y, x = np.meshgrid(y, x)
         dist = np.sqrt(x**2 + y**2)
 
-        # mask = np.zeros((h, w))
-        mask = np.full((h, w), -1)
+        mask = np.zeros((h, w))
         mask[dist <= config.radius / config.total_stride] = 1
+        mask[dist > config.radius / config.total_stride] = -1
 
         # np.newaxis is used to increase the dimension 
         # of the existing array by one more dimension, when used once
         mask = mask[np.newaxis, :, :]
         
         weights = np.ones_like(mask)
-        weights[mask == 1] = 0.5 / np.sum(mask == 1)
-        weights[mask == -1] = 0.5 / np.sum(mask == -1)
+        weights[mask == 1] = np.sum(mask == 1) / totalSize
+        weights[mask == -1] = np.sum(mask == -1) / totalSize
+
 
         # mask output size:
         # [batch_size, 1, config.response_size, config.response_size]
         # i.e., by default, [8,1,17,17]
         mask = np.repeat(mask, config.train_batch_size, axis=0)[
             :, np.newaxis, :, :]
-        # print('Mask ==>', mask.shape)
-        # print('weights ==>', weights)        
+
+        weights = np.repeat(weights, config.train_batch_size, axis=0)[
+             np.newaxis, :, :, :]
+
         return mask.astype(np.float32), weights.astype(np.float32)

@@ -1,3 +1,4 @@
+import sys
 import torch
 import cv2
 import os
@@ -9,6 +10,7 @@ from torch.utils.data.dataset import Dataset
 
 from config import config
 
+
 class ImagnetVIDDataset(Dataset):
     def __init__(self, db, video_names, data_dir, z_transforms, x_transforms, training=True):
         self.video_names = video_names
@@ -17,9 +19,12 @@ class ImagnetVIDDataset(Dataset):
         self.x_transforms = x_transforms
 
         if 'ILSVRC_VID_CURATION' in data_dir:
+
+            self.num = len(self.video_names) if config.num_per_epoch is None or not training\
+                else config.num_per_epoch
             meta_data_path = os.path.join(data_dir, 'meta_data.pkl')
             self.meta_data = pickle.load(open(meta_data_path, 'rb'))
-            self.meta_data = {x[0]:x[1] for x in self.meta_data}
+            self.meta_data = {x[0]: x[1] for x in self.meta_data}
 
             # filter traj len less than 2
             for key in self.meta_data.keys():
@@ -30,31 +35,31 @@ class ImagnetVIDDataset(Dataset):
 
         elif 'SQUARE_DATASET' in data_dir:
 
+            self.num = 442 if config.num_per_epoch is None or not training\
+                else config.num_per_epoch
+
             self.meta_data = {
                 'images_1': {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 },
-                'images_2' : {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                'images_2': {
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 },
-                'images_3' : {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                'images_3': {
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 },
-                'images_4' : {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                'images_4': {
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 },
-                'images_5' : {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                'images_5': {
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 },
                 'images_6': {
-                    0 : ['000000', '000001', '000002', '000003', '000004']
+                    0: ['000000', '000001', '000002', '000003', '000004']
                 }
             }
-        
 
         self.txn = db.begin(write=False)
-        self.num = len(self.video_names) if config.num_per_epoch is None or not training\
-                else config.num_per_epoch
 
     def imread(self, path):
         key = hashlib.md5(path.encode()).digest()
@@ -85,8 +90,15 @@ class ImagnetVIDDataset(Dataset):
         assert len(traj) > 1, "video_name: {}".format(video)
         # sample exemplar
         exemplar_idx = np.random.choice(list(range(len(traj))))
-        exemplar_name = os.path.join(self.data_dir, video, traj[exemplar_idx]+".{:02d}.x.jpg".format(trkid))
+        exemplar_name = os.path.join(
+            self.data_dir, video, traj[exemplar_idx]+".{:02d}.x.jpg".format(trkid))
+        # print(exemplar_name)
         exemplar_img = self.imread(exemplar_name)
+
+        if None in exemplar_img:
+            print('None Type found in exemplar', exemplar_name)
+            sys.exit()
+
         exemplar_img = cv2.cvtColor(exemplar_img, cv2.COLOR_BGR2RGB)
         # sample instance
         low_idx = max(0, exemplar_idx - config.frame_range)
@@ -94,11 +106,20 @@ class ImagnetVIDDataset(Dataset):
 
         # create sample weight, if the sample are far away from center
         # the probability being choosen are high
-        weights = self._sample_weights(exemplar_idx, low_idx, up_idx, config.sample_type)
-        instance = np.random.choice(traj[low_idx:exemplar_idx] + traj[exemplar_idx+1:up_idx], p=weights)
-        instance_name = os.path.join(self.data_dir, video, instance+".{:02d}.x.jpg".format(trkid))
+        weights = self._sample_weights(
+            exemplar_idx, low_idx, up_idx, config.sample_type)
+        instance = np.random.choice(
+            traj[low_idx:exemplar_idx] + traj[exemplar_idx+1:up_idx], p=weights)
+        instance_name = os.path.join(
+            self.data_dir, video, instance+".{:02d}.x.jpg".format(trkid))
+        # print('instance==>', instance_name)
+        # instance_img = cv2.imread(instance_name, cv2.IMREAD_COLOR)
         instance_img = self.imread(instance_name)
-        instance_img = cv2.cvtColor(instance_img, cv2.COLOR_BGR2RGB)
+
+        if None in instance_img:
+            print('None Type found in instance', instance_name)
+            sys.exit()
+
         if np.random.rand(1) < config.gray_ratio:
             exemplar_img = cv2.cvtColor(exemplar_img, cv2.COLOR_RGB2GRAY)
             exemplar_img = cv2.cvtColor(exemplar_img, cv2.COLOR_GRAY2RGB)
