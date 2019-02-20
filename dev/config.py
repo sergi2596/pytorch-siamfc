@@ -39,6 +39,7 @@ class Config:
     sample_type = 'uniform'
     gray_ratio = 0.25
     blur_ratio = 0.15
+    model_path = '/home/lv71186/deutsch/pysiamfc/dev/experiments/17-02-2019-19:07:00/models/siamfc_30.pth'
 
 
 config = Config()

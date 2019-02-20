@@ -8,7 +8,7 @@ from config import config
 
 class SiameseNet(nn.Module):
 
-    def __init__(self, num_classes=1000):
+    def __init__(self):
         super(SiameseNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 96, kernel_size=11, stride=2),
@@ -34,6 +34,7 @@ class SiameseNet(nn.Module):
         self.gt = torch.from_numpy(gt).cuda()
         self.weight = torch.from_numpy(weight).cuda()
         self.batch_normalization = nn.BatchNorm2d(1)
+        self.reference = None
 
     def init_weights(self):
         """ Initializes the weights of the CNN model
@@ -57,15 +58,29 @@ class SiameseNet(nn.Module):
         Returns:
             [torch.Tensor] -- Score Map of the correlation
         """
+        if x is not None and z is not None:
 
-        search = self.features(x)
-        reference = self.features(z)
-        N, C, H, W = search.shape
-        search = search.view(1, -1, H, W)
-        score_map = F.conv2d(search, reference, groups=N) * config.response_scale + self.corr_bias
-        weighted_score_map = score_map * self.weight
+            search = self.features(x)
+            reference = self.features(z)
+            N, C, H, W = search.shape
+            search = search.view(1, -1, H, W)
+            score_map = F.conv2d(search, reference, groups=N) * config.response_scale + self.corr_bias
+            weighted_score_map = score_map * self.weight
+            return weighted_score_map.transpose(0, 1)
+        
+        elif z is not None and x is None:
+            
+            self.reference = self.features(z)
+            self.reference = torch.cat([self.reference for _ in range(3)], dim=0)
+        
+        else:
+            
+            search = self.features(x)
+            N, C, H, W = search.shape
+            search = search.view(1, -1, H, W)
+            score = F.conv2d(search, self.reference, groups=N)
+            return score.transpose(0, 1)
 
-        return weighted_score_map.transpose(0, 1)
     
     def loss(self, output):
         """Since we compute the loss for every mini-batch, we first calculate
