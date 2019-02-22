@@ -1,0 +1,4 @@
+**/experiments
+**/SQUARE_DATASET
+**/*.lmdb
+**/*.sh
