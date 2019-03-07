@@ -48,7 +48,7 @@ def main():
 
     # create Experiment directories
     cwd = os.getcwd()
-    test = os.path.join(cwd,'test')
+    test = os.path.join(cwd,'dev')
     experiment_folder = os.path.join(test, config.experiment_folder)
     time = datetime.now().strftime('%d-%m-%Y_%H-%M-%S')
     print('\n================= EXPERIMENT START TIME',
@@ -60,7 +60,7 @@ def main():
     new_exp_dir = os.path.join(test, config.experiment_folder, time)
     tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
     models_dir = os.path.join(new_exp_dir+'/models/')
-    output_files = []
+    output_files = [os.path.join(cwd,'test.sh')]
 
     if not os.path.exists(new_exp_dir):
         os.mkdir(new_exp_dir)
@@ -88,18 +88,25 @@ def main():
         meta_data_path = os.path.join(args.datadir, "meta_data.pkl")
         meta_data = pickle.load(open(meta_data_path, 'rb'))
         videos = [x[0] for x in meta_data]
+        print('Using Imagenet dataset...')
 
     elif 'SQUARE_DATASET' in args.datadir:
         videos = ['images_1', 'images_2', 'images_3',
                   'images_4', 'images_5', 'images_6']
+        
+        print('Using Synthetic dataset...')
+
+    
+    elif 'BOX_DATASET' in args.datadir:
+        videos = ['image_1', 'image_2']
+        
+        print('Using Single Box dataset...')         
 
     # split train/valid dataset
     train_videos, valid_videos = train_test_split(
         videos, test_size=1-config.train_ratio)
 
     # define transforms
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
 
     random_crop_size = config.instance_size - 2 * config.total_stride
     train_reference_transforms = transforms.Compose([
@@ -108,7 +115,7 @@ def main():
         ToTensor()
     ])
     train_search_transforms = transforms.Compose([
-        # RandomCrop((random_crop_size, random_crop_size), config.max_translate),
+        RandomCrop((random_crop_size, random_crop_size), config.max_translate),
         Normalize(),
         ToTensor()
     ])
@@ -138,7 +145,6 @@ def main():
     print('Loading Validation Dataset...')
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
-
 
     print('Loading SiameseNet')
     model = siamnet.SiameseNet()

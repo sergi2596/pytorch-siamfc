@@ -8,7 +8,7 @@ from config import config
 
 class SiameseNet(nn.Module):
 
-    def __init__(self):
+    def __init__(self, train=True):
         super(SiameseNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 96, kernel_size=11, stride=2),
@@ -30,9 +30,15 @@ class SiameseNet(nn.Module):
         np.set_printoptions(threshold=np.inf)
         torch.set_printoptions(profile="full")
         self.corr_bias = nn.Parameter(torch.zeros(1))
+        
+        gt, weight = self._create_gt_mask((config.train_response_sz, config.train_response_sz))
+        self.train_gt = torch.from_numpy(gt).cuda()
+        self.train_weight = torch.from_numpy(weight).cuda()
+        
         gt, weight = self._create_gt_mask((config.response_sz, config.response_sz))
-        self.gt = torch.from_numpy(gt).cuda()
-        self.weight = torch.from_numpy(weight).cuda()
+        self.valid_gt = torch.from_numpy(gt).cuda()
+        self.valid_weight = torch.from_numpy(weight).cuda()
+        
         self.batch_normalization = nn.BatchNorm2d(1)
         self.reference = None
 
@@ -65,10 +71,14 @@ class SiameseNet(nn.Module):
             N, C, H, W = search.shape
             search = search.view(1, -1, H, W)
             score_map = F.conv2d(search, reference, groups=N) * config.response_scale + self.corr_bias
-            weighted_score_map = score_map * self.weight
+            if self.training:
+                weighted_score_map = score_map * self.train_weight
+            else:
+                weighted_score_map = score_map * self.valid_weight
+                
             return weighted_score_map.transpose(0, 1)
         
-        elif z is not None and x is None:
+        elif x is None and z is not None:
             
             self.reference = self.features(z)
             self.reference = torch.cat([self.reference for _ in range(3)], dim=0)
@@ -92,12 +102,11 @@ class SiameseNet(nn.Module):
         Returns:
             [type] -- [description]
         """
+        if self.training:
+            return F.soft_margin_loss(output, self.train_gt, reduction='sum') / config.train_batch_size
 
-        # print('GT ==>', self.gt.shape)
-        # print('SCORE MAP ==>', output.shape)
-        # return F.binary_cross_entropy_with_logits(output, self.gt, self.weight, reduction='sum') / config.train_batch_size
-        # print("BINARY LOSS ==>", binary.item())
-        return F.soft_margin_loss(output, self.gt, reduction='sum') / config.train_batch_size
+        else:
+            return F.soft_margin_loss(output, self.valid_gt, reduction='sum') / config.train_batch_size
 
     def _create_gt_mask(self, shape):
         """Creates the Ground Truth Score Map to compute the loss
@@ -128,8 +137,9 @@ class SiameseNet(nn.Module):
         mask = mask[np.newaxis, :, :]
         
         weights = np.ones_like(mask)
-        weights[mask == 1] = np.sum(mask == 1) / totalSize
-        weights[mask == -1] = np.sum(mask == -1) / totalSize
+        # weights[mask == 1] = totalSize / np.sum(mask == 1) #16/272
+        weights[mask == 1] = np.sum(mask == 1) / totalSize  #16/272
+        weights[mask == -1] = np.sum(mask == -1) / totalSize #256/272
 
 
         # mask output size:

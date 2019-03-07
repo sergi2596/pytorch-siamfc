@@ -59,6 +59,20 @@ class ImagnetVIDDataset(Dataset):
                 }
             }
 
+        elif 'BOX_DATASET' in data_dir:
+
+            self.num = 200 if config.num_per_epoch is None or not training\
+                else config.num_per_epoch
+
+            self.meta_data = {
+                'image_1': {
+                    0: ['0000', '0001', '0002']
+                },
+                'image_2': {
+                    0: ['0000', '0001', '0002']
+                }
+            }
+
         self.txn = db.begin(write=False)
 
     def imread(self, path):

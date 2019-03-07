@@ -13,22 +13,23 @@ class Config:
     valid_batch_size = 8                   # validation batch size
     train_num_workers = 8                  # number of workers of train dataloader
     valid_num_workers = 8                  # number of workers of validation dataloader
-    lr = 1e-2                              # learning rate of SGD
+    lr = 1e-3                              # learning rate of SGD
     momentum = 0.0                         # momentum of SGD
-    weight_decay = 0.0                     # weight decay of optimizator
+    weight_decay = 5e-4                    # weight decay of optimizator
     step_size = 25                         # step size of LR_Schedular
     gamma = 0.1                            # decay rate of LR_Schedular
     start_epoch = 0                        # start from epoch
-    epoch = 30                             # total epoch
+    epoch = 50                             # total epoch
     seed = 1234                            # seed to sample training videos
     experiment_folder = 'experiments'      # Experiment dirs
+    test_folder = 'tracker_test'           # Tracker test dirs
     radius = 16                            # radius of positive label
-    response_scale = 1e-5                  # normalize of response
+    response_scale = 1e-4                  # normalize of response
     max_translate = 3                      # max translation of random shift
 
     # tracking related
     scale_step = 1.0375                    # scale step of instance image
-    num_scale = 3                          # number of scales
+    num_scale = 1                          # number of scales
     scale_lr = 0.59                        # scale learning rate
     response_up_stride = 16                # response upsample stride
     response_sz = 17                       # response size
@@ -39,7 +40,16 @@ class Config:
     sample_type = 'uniform'
     gray_ratio = 0.25
     blur_ratio = 0.15
-    model_path = '/home/lv71186/deutsch/pysiamfc/dev/experiments/17-02-2019-19:07:00/models/siamfc_30.pth'
+    model_path = '/home/lv71186/deutsch/pysiamfc/dev/experiments/05-03-2019_10-45-50/models/siamfc_30.pth'
 
 
 config = Config()
+    
+    # p.numScale = 5;
+    # p.scaleStep = 1.0255;
+    # p.scalePenalty = 0.962;  % penalizes the change of scale
+    # p.scaleLR = 0.34;
+    # p.responseUp = 16; % response upsampling factor (purpose is to account for stride, but they dont have to be equal)
+    # p.windowing = 'cosine';
+    # p.wInfluence = 0.168;
+    # p.net = '2016-08-17.net.mat';
