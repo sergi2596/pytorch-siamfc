@@ -104,12 +104,12 @@ def worker(output_dir, img_x_video, video_dir):
     xmax = (int(__IMAGE_SIZE/2)+int(__TARGET_SIZE/2))
     upper_left = (xmin, xmin)
     bottom_right = (xmax, xmax)
-    image = background
-    image = cv2.rectangle(image, upper_left, bottom_right, random_color(), -1)
+    template = cv2.rectangle(background, upper_left, bottom_right, random_color(), -1)
     video_name = video_dir.split('/')[-1]
     filenames = {0: []}
 
     for i in range(img_x_video):
+        image = template
         image = noisy(__NOISE_TYPES[randint(0, len(__NOISE_TYPES)-1)], image)
         cv2.imwrite(video_dir+'/'+str(i)+'.00.x.jpg', image)
         filenames[0].append(str(i))
