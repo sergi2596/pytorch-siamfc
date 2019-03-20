@@ -12,7 +12,7 @@ from tqdm import tqdm
 def main(image_size, bbox_size, num_frames, max_displacement):
 
     cwd = os.getcwd()
-    video_dir = os.path.join(cwd,'dev','random_video')
+    video_dir = os.path.join(cwd,'random_video')
     gt = os.path.join(video_dir,'groundtruth.txt')
     if not os.path.exists(video_dir):
         os.mkdir(video_dir) 

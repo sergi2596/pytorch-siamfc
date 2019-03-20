@@ -153,6 +153,10 @@ def create_dataset(output_dir, num_images, num_videos, num_threads=32):
 
             metadata[ret[0]] = ret[1]
 
+    output_file = os.path.join(data_dir, 'metadata.txt')
+    with open(output_file, 'w') as file:
+        json.dump(metadata, file)
+
 
 if __name__ == '__main__':
     Fire(create_dataset)
