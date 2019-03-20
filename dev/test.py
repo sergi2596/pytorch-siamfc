@@ -1,10 +1,12 @@
 import argparse
-import os, glob, shutil
+import os
+import glob
+import shutil
 from datetime import datetime
 import time
 
 import sys
-
+import json
 import pickle
 import lmdb
 from sklearn.model_selection import train_test_split
@@ -48,19 +50,19 @@ def main():
 
     # create Experiment directories
     cwd = os.getcwd()
-    test = os.path.join(cwd,'dev')
+    test = os.path.join(cwd, 'dev')
     experiment_folder = os.path.join(test, config.experiment_folder)
     time = datetime.now().strftime('%d-%m-%Y_%H-%M-%S')
     print('\n================= EXPERIMENT START TIME',
           time, '=================\n')
-    
+
     if not os.path.exists(experiment_folder):
         os.mkdir(experiment_folder)
 
     new_exp_dir = os.path.join(test, config.experiment_folder, time)
     tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
     models_dir = os.path.join(new_exp_dir+'/models/')
-    output_files = [os.path.join(cwd,'test.sh')]
+    output_files = [os.path.join(cwd, 'test.sh')]
 
     if not os.path.exists(new_exp_dir):
         os.mkdir(new_exp_dir)
@@ -74,7 +76,7 @@ def main():
 
         for file in glob.glob(os.path.join(cwd, "*.out")):
             output_files.append(file)
-    
+
     # Create Tensorboard summary writer
     writer = SummaryWriter(tensorboard_dir)
 
@@ -83,24 +85,12 @@ def main():
     loss_list = []
     acc_list = []
 
-    if 'ILSVRC_VID_CURATION' in args.datadir:
-        # loading meta data
-        meta_data_path = os.path.join(args.datadir, "meta_data.pkl")
-        meta_data = pickle.load(open(meta_data_path, 'rb'))
-        videos = [x[0] for x in meta_data]
-        print('Using Imagenet dataset...')
-
-    elif 'SQUARE_DATASET' in args.datadir:
-        videos = ['images_1', 'images_2', 'images_3',
-                  'images_4', 'images_5', 'images_6']
-        
-        print('Using Synthetic dataset...')
-
+    # loading meta data
+    meta_data_path = os.path.join(args.datadir, "meta_data.pkl")
+    meta_data = pickle.load(open(meta_data_path, 'rb'))
+    videos = [x[0] for x in meta_data]
+    print('Training with', args.datadir.split('/')[-1])
     
-    elif 'BOX_DATASET' in args.datadir:
-        videos = ['image_1', 'image_2']
-        
-        print('Using Single Box dataset...')         
 
     # split train/valid dataset
     train_videos, valid_videos = train_test_split(
@@ -137,7 +127,6 @@ def main():
                                       train_reference_transforms, train_search_transforms)
     valid_dataset = ImagnetVIDDataset(db, valid_videos, args.datadir,
                                       valid_reference_transforms, valid_search_transforms, training=False)
-
     # create dataloader
     print('Loading Train Dataset...')
     trainloader = DataLoader(train_dataset, batch_size=config.train_batch_size,
@@ -146,7 +135,7 @@ def main():
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
 
-    print('Loading SiameseNet')
+    print('Loading SiameseNet...')
     model = siamnet.SiameseNet()
     model.features = torch.nn.DataParallel(model.features)
     model.init_weights()
@@ -215,7 +204,8 @@ def main():
 
         torch.save(model.cpu().state_dict(), models_dir +
                    "siamfc_{}.pth".format(epoch+1))
-        writer.add_scalars('Loss', {'Validation':valid_loss}, (epoch+1)*len(trainloader))
+        writer.add_scalars(
+            'Loss', {'Validation': valid_loss}, (epoch+1)*len(trainloader))
 
         model.cuda()
         scheduler.step()

@@ -6,6 +6,7 @@ import numpy as np
 import pickle
 import lmdb
 import hashlib
+import json
 from torch.utils.data.dataset import Dataset
 
 from config import config
@@ -18,60 +19,18 @@ class ImagnetVIDDataset(Dataset):
         self.z_transforms = z_transforms
         self.x_transforms = x_transforms
 
-        if 'ILSVRC_VID_CURATION' in data_dir:
+        self.num = len(self.video_names) if config.num_per_epoch is None or not training\
+            else config.num_per_epoch
 
-            self.num = len(self.video_names) if config.num_per_epoch is None or not training\
-                else config.num_per_epoch
-            meta_data_path = os.path.join(data_dir, 'meta_data.pkl')
-            self.meta_data = pickle.load(open(meta_data_path, 'rb'))
-            self.meta_data = {x[0]: x[1] for x in self.meta_data}
-
-            # filter traj len less than 2
-            for key in self.meta_data.keys():
-                trajs = self.meta_data[key]
-                for trkid in list(trajs.keys()):
-                    if len(trajs[trkid]) < 2:
-                        del trajs[trkid]
-
-        elif 'SQUARE_DATASET' in data_dir:
-
-            self.num = 442 if config.num_per_epoch is None or not training\
-                else config.num_per_epoch
-
-            self.meta_data = {
-                'images_1': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                },
-                'images_2': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                },
-                'images_3': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                },
-                'images_4': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                },
-                'images_5': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                },
-                'images_6': {
-                    0: ['000000', '000001', '000002', '000003', '000004']
-                }
-            }
-
-        elif 'BOX_DATASET' in data_dir:
-
-            self.num = 200 if config.num_per_epoch is None or not training\
-                else config.num_per_epoch
-
-            self.meta_data = {
-                'image_1': {
-                    0: ['0000', '0001', '0002']
-                },
-                'image_2': {
-                    0: ['0000', '0001', '0002']
-                }
-            }
+        meta_data_path = os.path.join(data_dir, 'meta_data.pkl')
+        self.meta_data = pickle.load(open(meta_data_path, 'rb'))
+        self.meta_data = {x[0]: x[1] for x in self.meta_data}
+        # filter traj len less than 2
+        for key in self.meta_data.keys():
+            trajs = self.meta_data[key]
+            for trkid in list(trajs.keys()):
+                if len(trajs[trkid]) < 2:
+                    del trajs[trkid]
 
         self.txn = db.begin(write=False)
 
@@ -106,7 +65,6 @@ class ImagnetVIDDataset(Dataset):
         exemplar_idx = np.random.choice(list(range(len(traj))))
         exemplar_name = os.path.join(
             self.data_dir, video, traj[exemplar_idx]+".{:02d}.x.jpg".format(trkid))
-        # print(exemplar_name)
         exemplar_img = self.imread(exemplar_name)
 
         if None in exemplar_img:
@@ -126,8 +84,6 @@ class ImagnetVIDDataset(Dataset):
             traj[low_idx:exemplar_idx] + traj[exemplar_idx+1:up_idx], p=weights)
         instance_name = os.path.join(
             self.data_dir, video, instance+".{:02d}.x.jpg".format(trkid))
-        # print('instance==>', instance_name)
-        # instance_img = cv2.imread(instance_name, cv2.IMREAD_COLOR)
         instance_img = self.imread(instance_name)
 
         if None in instance_img:

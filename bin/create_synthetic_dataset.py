@@ -7,12 +7,14 @@ import glob
 import random
 import numpy as np
 import cv2
+import pickle
 import json
 import functools
 from multiprocessing import Pool
 from tqdm import tqdm
+import warnings
 
-
+warnings.filterwarnings("ignore")
 sys.path.append(os.getcwd())
 
 __IMAGE_SIZE = 255
@@ -22,7 +24,7 @@ __NOISE_TYPES = ['gauss', 's&p', 'speckle']
 
 def random_color():
     '''Creates tuple with random RGB values
-    
+
     Returns:
         [tuple] -- [Random RGB values]
     '''
@@ -86,16 +88,15 @@ def noisy(noise_typ, image):
 def worker(output_dir, img_x_video, video_dir):
     '''Creates a synthetic image with random background and target color
     and (img_x_video) different copies with random noise.
-    
+
     Arguments:
         output_dir {string} -- [Path to dataset]
         img_x_video {int} -- [Number of images of subfolder]
         video_dir {string} -- [Path to subfolder]
-    
+
     Returns:
         [string, dict] -- [Metadata of video]
     '''
-
 
     background = np.zeros((__IMAGE_SIZE, __IMAGE_SIZE, 3))
     background[:] = random_color()
@@ -104,7 +105,8 @@ def worker(output_dir, img_x_video, video_dir):
     xmax = (int(__IMAGE_SIZE/2)+int(__TARGET_SIZE/2))
     upper_left = (xmin, xmin)
     bottom_right = (xmax, xmax)
-    template = cv2.rectangle(background, upper_left, bottom_right, random_color(), -1)
+    template = cv2.rectangle(background, upper_left,
+                             bottom_right, random_color(), -1)
     video_name = video_dir.split('/')[-1]
     filenames = {0: []}
 
@@ -146,14 +148,18 @@ def create_dataset(output_dir, num_images, num_videos, num_threads=32):
         os.mkdir(subfolder)
         all_videos.append(subfolder)
 
-    metadata = {}
+    metadata = []
     with Pool(processes=num_threads) as pool:
         for ret in tqdm(pool.imap_unordered(
                 functools.partial(worker, output_dir, img_x_video), all_videos), total=len(all_videos)):
-
-            metadata[ret[0]] = ret[1]
+            metadata.append(ret)
+            # metadata[ret[0]] = ret[1]
 
     output_file = os.path.join(data_dir, 'metadata.txt')
+    
+    pickle.dump(metadata, open(os.path.join(
+        output_dir, "meta_data.pkl"), 'wb'))
+
     with open(output_file, 'w') as file:
         json.dump(metadata, file)
 
