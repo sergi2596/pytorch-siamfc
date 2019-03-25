@@ -7,4 +7,4 @@
 
 module purge
 module load gcc/6.4 python/3.6 cuda/9.1.85
-python3 siamfc/demo_siamfc.py --video-dir dev/random_video --model-dir models/siamfc_50.pth
+python3 siamfc/demo_siamfc.py --video-dir /path/to/video --model-dir /path/to/model.pth

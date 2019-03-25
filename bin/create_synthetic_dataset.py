@@ -140,7 +140,7 @@ def create_dataset(output_dir, num_images, num_videos, num_threads=32):
     assert num_images % num_videos == 0, "num_images/num_videos should be an integer. Choose other values"
 
     img_x_video = int(num_images/num_videos)
-    os.mkdir(data_dir)
+    os.makedirs(data_dir, exist_ok=True)    
     all_videos = []
     for i in range(num_videos):
         name = 'video_'+str(i)
