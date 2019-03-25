@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 ## Creating a synthetic dataset
 
-1. `create_synthetic_dataset.sh` creates a synthetic dataset composed by 255x255 images with a centered square. Random colors and noise types are applied. The dataset is divided in subfolders, simulating different videos.
+1. `bin/create_synthetic_dataset.py` creates a synthetic dataset composed by 255x255 images with a centered square. Random colors and noise types are applied. The dataset is divided in subfolders, simulating different videos.
 - output-dir: path to save dataset
 - num-images: total samples of dataset.
 - num-videos: number of dataset subfolders.
@@ -27,41 +27,27 @@ pip install -r requirements.txt
 **NOTE: num_images must be divisible by num_videos**
 
 ```
-#!/bin/bash
-#SBATCH -J create-dataset
-#SBATCH -N 1
-#SBATCH --partition gpu_gtx1080multi
-#SBATCH --qos gpu_gtx1080multi
-#SBATCH --gres gpu:4
-
-module purge
-module load gcc/6.4 python/3.6 cuda/9.1.85
 python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --num-images 20000 --num-videos 200
 ```
 
-2. `create_lmdb.sh` creates a lmdb file for previous dataset. 
+2. `bin/create_lmdb.py` creates a lmdb file for previous dataset. 
 
 **NOTE: Dataset and lmdb file should be in the same directory**. 
+
 ```
-#!/bin/bash
-#BATCH -J training-test
-#SBATCH -N 1
-#SBATCH --partition gpu_gtx1080single
-#SBATCH --qos gpu_gtx1080single
-#SBATCH --gres gpu:1
-
-module purge
-module load gcc/6.4 python/3.6 cuda/9.1.85
 python3 bin/create_lmdb.py --data-dir /path/to/synthetic/dataset --output-dir /path/to/synthetic/dataset.lmdb --num-threads 12
-
 ```
 
 ## Training the network
 
-Use `train_siamfc.sh` to train the network form scratch using the selected dataset. All training parameters are defined in `/siamfc/config.py`. The script will create a directory called `training_exp/NAME_OF_DATASET/timestamp/` to save the result of the experiment, including:
+Use `siamfc/training.py` to train the network form scratch using the selected dataset. All training parameters are defined in `/siamfc/config.py`. The script will create a directory called `training_exp/NAME_OF_DATASET/timestamp/` to save the result of the experiment, including:
 - A copy of python and shell files used in the experiment.
 - A `models/` directory to save the network state_dict at every epoch
 - A `tensorboard/` directory to supervise the training process using TensorboadX
+
+```
+python3 siamfc/training.py --datadir /path/to/dataset
+```
 
 **NOTE: when working with SLURM, just execute `SBATCH train_siamfc.sh`**
 
