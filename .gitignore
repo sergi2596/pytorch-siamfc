@@ -1,7 +1,5 @@
 tracking_exp/
 training_exp/
-**/SQUARE_DATASET
-**/*.lmdb
 env/
 *.pyc
 *.ipynb
