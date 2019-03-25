@@ -15,7 +15,7 @@ def main(output_dir, image_size, bbox_size, num_frames, max_displacement):
     video_dir = os.path.join(output_dir)
     gt = os.path.join(video_dir,'groundtruth.txt')
     if not os.path.exists(video_dir):
-        os.mkdir(video_dir) 
+        os.makedirs(video_dir, exist_ok=True) 
 
     with open(gt, 'w+') as file:
         for i in tqdm(range(num_frames)):
