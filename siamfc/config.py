@@ -6,7 +6,7 @@ class Config:
     context_amount = 0.5                   # context amount
 
     # training related
-    num_per_epoch = 20000                  # num of samples per epoch
+    num_per_epoch = 200                  # num of samples per epoch
     train_ratio = 0.8                      # training ratio of VID dataset
     frame_range = 100                      # frame range of choosing the instance
     train_batch_size = 8                   # training batch size

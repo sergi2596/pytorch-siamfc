@@ -7,5 +7,5 @@
 
 module purge
 module load gcc/6.4 python/3.6 cuda/9.1.85
-python3 bin/create_lmdb.py --data-dir /home/lv71186/deutsch/datasets/SYNTHETIC_DATASET --output-dir /home/lv71186/deutsch/datasets/SYNTHETIC_DATASET.lmdb --num-threads 12
+python3 bin/create_lmdb.py --data-dir ../datasets/TEST_DATASET --output-dir ../datasets/TEST_DATASET.lmdb --num-threads 12
 
