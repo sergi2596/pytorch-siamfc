@@ -21,8 +21,6 @@ class Config:
     start_epoch = 0                        # start from epoch
     epoch = 50                             # total epoch
     seed = 1234                            # seed to sample training videos
-    # experiment_folder = 'experiments'      # Experiment dirs
-    test_folder = 'tracker_test'           # Tracker test dirs
     radius = 16                            # radius of positive label
     response_scale = 1e-5                  # normalize of response
     max_translate = 3                      # max translation of random shift
@@ -40,7 +38,6 @@ class Config:
     sample_type = 'uniform'
     gray_ratio = 0.25
     blur_ratio = 0.15
-    model_path = 'models/siamfc_50.pth'
 
 
 config = Config()
