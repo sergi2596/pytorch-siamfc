@@ -29,7 +29,7 @@ NOTE: num_images must be divisible by num_videos
 ```
 python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --num-images 20000 --num-videos 200
 ```
-#### **SLURM USERS: edit and run `create_synthetic_dataset.sh` instead**
+#### **SLURM USERS: edit and run `sh create_synthetic_dataset.sh` instead.**
 <br></br>
 2. `bin/create_lmdb.py` creates a lmdb file for previous dataset. 
 
@@ -38,7 +38,7 @@ NOTE: Dataset and lmdb file should be in the same directory.
 ```
 python3 bin/create_lmdb.py --data-dir /path/to/synthetic/dataset --output-dir /path/to/synthetic/dataset.lmdb --num-threads 12
 ```
-#### **SLURM USERS: edit and run `create_lmdb.sh` instead.**
+#### **SLURM USERS: edit and run `sh create_lmdb.sh` instead.**
 <br></br>
 ## Training the network
 
@@ -50,7 +50,22 @@ Use `siamfc/training.py` to train the network form scratch using the selected da
 ```
 python3 siamfc/training.py --datadir /path/to/dataset
 ```
-#### **SLURM USERS: edit and run `train_siamfc.sh` instead.**
+#### **SLURM USERS: edit and run `SBATCH train_siamfc.sh` instead.**
 <br></br>
+
+## Creating a synthetic test video
+
+Creates a video composed by a number of frames with a random moving black square on white background. Parameters to select:
+- output-dir: path to save the video.
+- image-size: size of frames.
+- bbox-size: size of squares.
+- max-displacement: max pixels of displacement allowed between consecutive frames.
+
+```
+python3 bin/create_synthetic_video.py --output-dir /path/to/save/video --image-size 255 --bbox-size 40 --num-frames 300 --max-displacement 4
+```
+#### **SLURM USERS: edit and run `create_video.sh` instead.**
+<br></br>
+
 ## References
 [1] Bertinetto, Luca and Valmadre, Jack and Henriques, Joo F and Vedaldi, Andrea and Torr, Philip H S Fully-Convolutional Siamese Networks for Object Tracking In ECCV 2016 workshops
