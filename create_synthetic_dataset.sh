@@ -7,4 +7,4 @@
 
 module purge
 module load gcc/6.4 python/3.6 cuda/9.1.85
-python3 bin/create_synthetic_dataset.py --output-dir ../datasets/SYNTHETIC_DATASET --num-images 100 --num-videos 10
+python3 bin/create_synthetic_dataset.py --output-dir ../datasets/SYNTHETIC_DATASET --num-images 20000 --num-videos 200
