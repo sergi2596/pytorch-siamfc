@@ -24,24 +24,22 @@ pip install -r requirements.txt
 - num-images: total samples of dataset.
 - num-videos: number of dataset subfolders.
 
-**NOTE: num_images must be divisible by num_videos**
+NOTE: num_images must be divisible by num_videos
 
 ```
 python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --num-images 20000 --num-videos 200
 ```
 #### **SLURM USERS: edit and run `create_synthetic_dataset.sh` instead**
-
 <br></br>
-
 2. `bin/create_lmdb.py` creates a lmdb file for previous dataset. 
 
-**NOTE: Dataset and lmdb file should be in the same directory**. 
+NOTE: Dataset and lmdb file should be in the same directory.
 
 ```
 python3 bin/create_lmdb.py --data-dir /path/to/synthetic/dataset --output-dir /path/to/synthetic/dataset.lmdb --num-threads 12
 ```
-#### **SLURM USERS: edit and run `create_lmdb.sh` instead**
-
+#### **SLURM USERS: edit and run `create_lmdb.sh` instead.**
+<br></br>
 ## Training the network
 
 Use `siamfc/training.py` to train the network form scratch using the selected dataset. All training parameters are defined in `/siamfc/config.py`. The script will create a directory called `training_exp/NAME_OF_DATASET/timestamp/` to save the result of the experiment, including:
@@ -52,9 +50,7 @@ Use `siamfc/training.py` to train the network form scratch using the selected da
 ```
 python3 siamfc/training.py --datadir /path/to/dataset
 ```
-
-**NOTE: when working with SLURM, just execute `SBATCH train_siamfc.sh`**
-
-
+#### **SLURM USERS: edit and run `train_siamfc.sh` instead.**
+<br></br>
 ## References
 [1] Bertinetto, Luca and Valmadre, Jack and Henriques, Joo F and Vedaldi, Andrea and Torr, Philip H S Fully-Convolutional Siamese Networks for Object Tracking In ECCV 2016 workshops
