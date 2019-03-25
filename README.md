@@ -31,7 +31,7 @@ python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --nu
 ```
 #### **SLURM USERS: edit and run `create_synthetic_dataset.sh` instead**
 
-
+<br></br>
 
 2. `bin/create_lmdb.py` creates a lmdb file for previous dataset. 
 
