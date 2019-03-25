@@ -55,10 +55,11 @@ python3 siamfc/training.py --datadir /path/to/dataset
 
 ## Creating a synthetic test video
 
-Creates a video composed by a number of frames with a random moving black square on white background. Parameters to select:
+Creates a video composed by a number of frames with a random moving black square on white background. It also creates a `groundtruth.txt` file with target position for each frame. The format followed is `xmin,ymin,height,width`. Parameters to select:
 - output-dir: path to save the video.
 - image-size: size of frames.
 - bbox-size: size of squares.
+- num_frames: total number of video frames.
 - max-displacement: max pixels of displacement allowed between consecutive frames.
 
 ```
