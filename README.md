@@ -13,6 +13,7 @@ git clone https://github.com/sergi2596/pytorch-siamfc.git
 cd pytorch-siamfc
 python3 -m venv env
 source env/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 
 ```
