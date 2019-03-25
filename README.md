@@ -25,10 +25,11 @@ pip install -r requirements.txt
 - num-videos: number of dataset subfolders.
 
 **NOTE: num_images must be divisible by num_videos**
-
+#### **FOR SLURM USERS: edit and run `create_synthetic_dataset.sh` instead**
 ```
 python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --num-images 20000 --num-videos 200
 ```
+
 
 2. `bin/create_lmdb.py` creates a lmdb file for previous dataset. 
 
@@ -37,6 +38,7 @@ python3 bin/create_synthetic_dataset.py --output-dir /path/to/save/dataset/ --nu
 ```
 python3 bin/create_lmdb.py --data-dir /path/to/synthetic/dataset --output-dir /path/to/synthetic/dataset.lmdb --num-threads 12
 ```
+
 
 ## Training the network
 
