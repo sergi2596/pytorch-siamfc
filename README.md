@@ -1,7 +1,9 @@
 # pytorch-siamfc
 
 Implementation of SiameseFC for Visual Tracking.
+
 Repository under development.
+
 **Code adapted from https://github.com/StrangerZhang/SiamFC-PyTorch.git**
 
 ## Initial setup
@@ -20,6 +22,7 @@ pip install -r requirements.txt
 `create_synthetic_dataset.sh` creates a synthetic dataset composed by 255x255 images with a centered square. Random colors and noise types are applied. The dataset is divided in subfolders, simulating different videos.
 - num-images: total samples of dataset.
 - num-videos: number of dataset subfolders.
+
 **NOTE**: num_images must be divisible by num_videos
 
 ```
