@@ -62,7 +62,7 @@ python3 siamfc/training.py --datadir /path/to/dataset
 Parameters to select:
 - datadir: path to dataset to train the network with.
 
-#### **SLURM USERS: edit and run `SBATCH train_siamfc.sh` instead.**
+#### **SLURM USERS: edit and run `SBATCH train_siamfc.sh` instead. Output will be writted to slurm.out**
 <br></br>
 
 ## Creating a synthetic test video
