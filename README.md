@@ -84,7 +84,7 @@ Parameters to select:
 
 ## Testing the tracker
 
-Use `siamfc/demo_siamfc.py` to test the tracker with a video. All tracking-related parameters are defined in `siamfc/config.py`. The output will be a directory called `tracking_exp/timestamp` with a copy of the video frames with a predicted bounding box.
+Use `siamfc/demo_siamfc.py` to test the tracker with a video. All tracking-related parameters are defined in `siamfc/config.py`. The output will be a directory called `tracking_exp/timestamp` with a copy of the video frames with a predicted bounding box and a graph showing the displacement between grountruth and predicted boundig boxes.
 ```
 python3 siamfc/demo_siamfc.py --video-dir /path/to/video/frames --model-dir /path/to/model.pth
 ```
