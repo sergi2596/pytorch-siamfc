@@ -7,14 +7,13 @@ import cv2
 import time
 import sys
 from datetime import datetime
-
-sys.path.append(os.getcwd())
-
+import matplotlib.pyplot as plt
 from fire import Fire
 from tqdm import tqdm
-
 from tracker import SiamFCTracker
 from config import config
+
+sys.path.append(os.getcwd())
 
 
 def main(video_dir, model_dir):
@@ -29,6 +28,7 @@ def main(video_dir, model_dir):
     new_exp_dir = os.path.join(video_exp_dir,time)
 
     if not os.path.exists(new_exp_dir):
+        print('Creating experiment folder...')
         os.makedirs(new_exp_dir, exist_ok=True)
     
     conf = os.path.join(siamfc,'config.py')
@@ -47,11 +47,16 @@ def main(video_dir, model_dir):
     gt_bboxes = pd.read_csv(os.path.join(video_dir, 'groundtruth.txt'), sep='\t|,| ',
             header=None, names=['xmin', 'ymin', 'width', 'height'],
             engine='python')
+
     title = video_dir.split('/')[-1]
     device = torch.cuda.current_device()
     
     # starting tracking
+    print('Loading', str(model_dir)+'...')
     tracker = SiamFCTracker(model_dir, device)
+    pred_bboxes = {'xmin':[], 'ymin':[]}
+
+    print('Starting tracking...')
     for idx, frame in enumerate(frames):
         if idx == 0:
             bbox = gt_bboxes.iloc[0].values
@@ -61,6 +66,8 @@ def main(video_dir, model_dir):
         else: 
             bbox = tracker.update(frame)
         
+        pred_bboxes['xmin'].append(int(bbox[0]))
+        pred_bboxes['ymin'].append(int(bbox[1]))
         # bbox xmin ymin xmax ymax
         frame = cv2.rectangle(frame,
                               (int(bbox[0]), int(bbox[1])),
@@ -73,6 +80,26 @@ def main(video_dir, model_dir):
         frame = cv2.putText(frame, str(idx), (5, 20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 255, 0), 1)
         
         cv2.imwrite(new_exp_dir+'/'+str(idx)+'.jpg', frame)
+    
+    prediction = pd.DataFrame(data=pred_bboxes)
+    gt_bboxes.drop('width', axis=1, inplace=True)
+    gt_bboxes.drop('height', axis=1, inplace=True)
+    displacement = prediction - gt_bboxes
+    x_disp = displacement['xmin'].tolist()
+    y_disp = displacement['ymin'].tolist()
+
+    bins = np.linspace(-6, 6, 30)
+    plt.subplot(1, 2, 1)
+    plt.hist(x_disp, bins, alpha=1)
+    plt.title('X displacement (pixels)')
+    plt.ylabel('Number of frames')
+    plt.subplot(1, 2, 2)
+    plt.hist(y_disp, bins, alpha=1, color='g')
+    plt.title('Y displacement (pixels)')
+    plt.ylabel('Number of frames')
+    plt.savefig(new_exp_dir+'/displacement.png')
+    print('------ DONE -------')
+    print('Results saved to', new_exp_dir)
 
 if __name__ == "__main__":
     Fire(main)

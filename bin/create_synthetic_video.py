@@ -39,7 +39,8 @@ def main(output_dir, image_size, bbox_size, num_frames, max_displacement):
 
             frame = cv2.rectangle(white_frame, (pos[0], pos[1]), (pos[2], pos[3]), (0,0,0), -1)
             cv2.imwrite(video_dir+'/'+str(i)+'.jpg', frame)
-            file.write(str(pos[0])+','+str(pos[1])+','+str(bbox_size)+','+str(bbox_size)+'\n')
+            # Followed format: xmin, ymin, width, height · 1-based
+            file.write(str(pos[0]+1)+','+str(pos[1]+1)+','+str(bbox_size)+','+str(bbox_size)+'\n')
 
 if __name__ == "__main__":
     Fire(main)
