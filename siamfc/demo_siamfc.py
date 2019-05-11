@@ -57,6 +57,7 @@ def main(video_dir, model_dir):
     pred_bboxes = {'xmin':[], 'ymin':[]}
 
     print('Starting tracking...')
+    start_time = datetime.now()
     for idx, frame in enumerate(frames):
         if idx == 0:
             bbox = gt_bboxes.iloc[0].values
@@ -81,6 +82,8 @@ def main(video_dir, model_dir):
         
         cv2.imwrite(new_exp_dir+'/'+str(idx)+'.jpg', frame)
     
+    end_time = datetime.now()
+    fps = len(frames)/max(1.0, (end_time-start_time).seconds)
     prediction = pd.DataFrame(data=pred_bboxes)
     gt_bboxes.drop('width', axis=1, inplace=True)
     gt_bboxes.drop('height', axis=1, inplace=True)
@@ -88,7 +91,7 @@ def main(video_dir, model_dir):
     x_disp = displacement['xmin'].tolist()
     y_disp = displacement['ymin'].tolist()
 
-    bins = np.linspace(-6, 6, 30)
+    bins = np.linspace(-15, 15, 30)
     plt.subplot(1, 2, 1)
     plt.hist(x_disp, bins, alpha=1)
     plt.title('X displacement (pixels)')
@@ -98,6 +101,12 @@ def main(video_dir, model_dir):
     plt.title('Y displacement (pixels)')
     plt.ylabel('Number of frames')
     plt.savefig(new_exp_dir+'/displacement.png')
+    print('X mean displacement: {}'.format(np.mean(np.absolute(x_disp))))
+    print('Y mean displacement: {}'.format(np.mean(np.absolute(y_disp))))
+    with open(new_exp_dir+'/mean_displacement.txt', 'w+') as file:
+        file.write('X mean displacement: {}\n'.format(np.mean(np.absolute(x_disp))))
+        file.write('Y mean displacement: {}\n'.format(np.mean(np.absolute(y_disp))))
+        file.write('FPS: {}\n'.format(fps))
     print('------ DONE -------')
     print('Results saved to', new_exp_dir)
 

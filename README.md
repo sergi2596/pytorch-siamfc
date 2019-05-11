@@ -1,8 +1,6 @@
 # pytorch-siamfc
 
-Implementation of SiameseFC for Visual Tracking.
-
-**REPOSITORY UNDER DEVELOPMENT**
+Implementation of SiamFC.
 
 **Code adapted from https://github.com/StrangerZhang/SiamFC-PyTorch.git**
 

@@ -42,12 +42,13 @@ from custom_transforms import Normalize, ToTensor, RandomStretch, \
 
 parser = argparse.ArgumentParser(description='PyTorch SiamFC Training')
 parser.add_argument('--datadir', metavar='DIR', help='path to dataset')
+parser.add_argument('--loss', '-l', metavar='LOSS', default='logistic', choices=[
+                    'bce', 'logistic'], help='Loss function to use during training: [bce, logistic]')
 
 best_prec1 = 0
 
 
 def main():
-
 
     global args, best_prec1
     args = parser.parse_args()
@@ -65,7 +66,7 @@ def main():
     tensorboard_dir = os.path.join(new_exp_dir+'/tensorboard/')
     models_dir = os.path.join(new_exp_dir+'/models/')
     output_files = [os.path.join(cwd, 'train_siamfc.sh')]
-    
+
     if not os.path.exists(new_exp_dir):
         os.makedirs(tensorboard_dir, exist_ok=True)
         os.makedirs(models_dir, exist_ok=True)
@@ -88,7 +89,6 @@ def main():
     meta_data = pickle.load(open(meta_data_path, 'rb'))
     videos = [x[0] for x in meta_data]
     print('Training with', args.datadir.split('/')[-1])
-    
 
     # split train/valid dataset
     train_videos, valid_videos = train_test_split(
@@ -133,8 +133,8 @@ def main():
     validloader = DataLoader(valid_dataset, batch_size=config.valid_batch_size,
                              shuffle=False, pin_memory=True, num_workers=config.valid_num_workers, drop_last=True)
 
-    print('Loading SiameseNet...')
-    model = siamnet.SiameseNet()
+    print('Initializing SiameseNet with {} Loss...'.format(args.loss.upper()))
+    model = siamnet.SiameseNet(loss=args.loss)
     model.features = torch.nn.DataParallel(model.features)
     model.init_weights()
     model = model.cuda()
@@ -173,7 +173,7 @@ def main():
             optimizer.zero_grad()
 
             outputs = model(reference_var, search_var)
-            loss = model.loss(outputs)
+            loss = model.compute_loss(outputs)
             loss.backward()
             optimizer.step()
 
@@ -192,7 +192,7 @@ def main():
             reference_var = Variable(reference_imgs.cuda())
             search_var = Variable(search_imgs.cuda())
             outputs = model(reference_var, search_var)
-            loss = model.loss(outputs)
+            loss = model.compute_loss(outputs)
             valid_loss.append(loss.data)
 
         valid_loss = torch.mean(torch.stack(valid_loss)).item()
@@ -214,7 +214,7 @@ def main():
     # Copy slurm output files to experiment folder
     for file in output_files:
         try:
-            shutil.copyfile(file, new_exp_dir+file.split(cwd)[1])            
+            shutil.copyfile(file, new_exp_dir+file.split(cwd)[1])
         except Exception as error:
             print('Error copying file {} to experiment folder: {}'.format(file, error))
             pass
