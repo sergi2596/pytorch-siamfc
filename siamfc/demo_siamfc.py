@@ -12,6 +12,7 @@ from fire import Fire
 from tqdm import tqdm
 from tracker import SiamFCTracker
 from config import config
+from scipy.spatial import distance
 
 sys.path.append(os.getcwd())
 
@@ -55,6 +56,8 @@ def main(video_dir, model_dir):
     print('Loading', str(model_dir)+'...')
     tracker = SiamFCTracker(model_dir, device)
     pred_bboxes = {'xmin':[], 'ymin':[]}
+    pred_center = []
+    dist = []
 
     print('Starting tracking...')
     start_time = datetime.now()
@@ -69,6 +72,13 @@ def main(video_dir, model_dir):
         
         pred_bboxes['xmin'].append(int(bbox[0]))
         pred_bboxes['ymin'].append(int(bbox[1]))
+
+        pred_center = ((bbox[0]+((bbox[2] - bbox[0])/2)), (bbox[1]+(bbox[3] - bbox[1])/2))
+        gt_center = gt_bboxes.iloc[idx].values
+        gt_center = ((int(gt_center[0]+(gt_center[2]/2)-1)), (int(gt_center[1]+(gt_center[3]/2)-1)))
+        # print(gt_center, pred_center)
+        dist.append(distance.euclidean(gt_center, pred_center))
+
         # bbox xmin ymin xmax ymax
         frame = cv2.rectangle(frame,
                               (int(bbox[0]), int(bbox[1])),
@@ -87,7 +97,11 @@ def main(video_dir, model_dir):
     prediction = pd.DataFrame(data=pred_bboxes)
     gt_bboxes.drop('width', axis=1, inplace=True)
     gt_bboxes.drop('height', axis=1, inplace=True)
+
     displacement = prediction - gt_bboxes
+    mean_euclid_dist = np.mean(dist)
+    print(mean_euclid_dist)
+
     x_disp = displacement['xmin'].tolist()
     y_disp = displacement['ymin'].tolist()
 
@@ -103,9 +117,12 @@ def main(video_dir, model_dir):
     plt.savefig(new_exp_dir+'/displacement.png')
     print('X mean displacement: {}'.format(np.mean(np.absolute(x_disp))))
     print('Y mean displacement: {}'.format(np.mean(np.absolute(y_disp))))
+    print('Euclidean distance: {}'.format(mean_euclid_dist))
     with open(new_exp_dir+'/mean_displacement.txt', 'w+') as file:
         file.write('X mean displacement: {}\n'.format(np.mean(np.absolute(x_disp))))
         file.write('Y mean displacement: {}\n'.format(np.mean(np.absolute(y_disp))))
+        file.write('Euclidean distance: {}'.format(mean_euclid_dist))
+
         file.write('FPS: {}\n'.format(fps))
     print('------ DONE -------')
     print('Results saved to', new_exp_dir)
